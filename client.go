@@ -82,18 +82,22 @@ func (c *Client) Version() string {
 	return c.version
 }
 
-// Do sends an HTTP request and tries to unmarshall the response in the given
-// interface.
-// if v is an io.Writer, the content of the Body os written to the writer, otherwise
-// the body is unmarshal (using the json package) into the given data structure
-func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) error {
+func (c *Client) doRaw(ctx context.Context, req *http.Request) (*http.Response, error) {
 	req = req.WithContext(ctx)
 
 	if c.UserAgent != "" && req.Header.Get("User-Agent") == "" {
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
 
-	resp, err := c.client.Do(req)
+	return c.client.Do(req)
+}
+
+// Do sends an HTTP request and tries to unmarshall the response in the given
+// interface.
+// if v is an io.Writer, the content of the Body os written to the writer, otherwise
+// the body is unmarshal (using the json package) into the given data structure
+func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) error {
+	resp, err := c.doRaw(ctx, req)
 	if err != nil {
 		return err
 	}
