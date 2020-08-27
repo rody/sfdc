@@ -21,7 +21,9 @@ type Client struct {
 	InstanceURL *url.URL
 	UserAgent   string
 
-	Query *QueryService
+	Query    *QueryService
+	Limits   *LimitsService
+	SObjects *SObjectsService
 }
 
 type ClientOption func(*Client) error
@@ -61,6 +63,8 @@ func NewClient(httpClient *http.Client, instanceURL string, opts ...ClientOption
 	}
 
 	c.Query = &QueryService{Service{client: c, basePath: fmt.Sprintf("/services/data/v%s/query/", c.version)}}
+	c.Limits = &LimitsService{Service{client: c, basePath: fmt.Sprintf("/services/data/v%s/limits/", c.version)}}
+	c.SObjects = &SObjectsService{Service{client: c, basePath: fmt.Sprintf("/services/data/v%s/sobjects/", c.version)}}
 
 	return c, nil
 }
@@ -152,7 +156,9 @@ func checkResponse(res *http.Response) error {
 	if err == nil && data != nil {
 		err = json.Unmarshal(data, &errorResponse.Errors)
 		if err != nil {
-			return err
+			errorResponse.Errors = []ErrorDetail{
+				ErrorDetail{Message: string(data), Code: "unknown"},
+			}
 		}
 	}
 	return errorResponse
@@ -160,10 +166,12 @@ func checkResponse(res *http.Response) error {
 
 type ErrorResponse struct {
 	Response *http.Response // HTTP response that caused this error
-	Errors   []struct {
-		Message   string `json:"message"`
-		Errorcode string `json:"errorCode"`
-	}
+	Errors   []ErrorDetail
+}
+
+type ErrorDetail struct {
+	Message string `json:"message"`
+	Code    string `json:"errorCode"`
 }
 
 func (r ErrorResponse) Error() string {
